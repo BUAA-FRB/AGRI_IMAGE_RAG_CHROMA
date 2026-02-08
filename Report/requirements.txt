@@ -1,0 +1,4 @@
+# 参考依赖（按你的环境选择）
+torch>=2.1
+transformers>=4.39
+accelerate>=0.27

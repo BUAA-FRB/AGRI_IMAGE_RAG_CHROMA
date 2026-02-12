@@ -1,0 +1,4 @@
+.pre_work_out/
+.pre_work/.cache/
+*.pyc
+__pycache__/

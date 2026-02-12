@@ -1,0 +1,23 @@
+{
+  "version": "v1",
+  "currency": "CNY",
+  "note": "Starter crop economics (placeholder). Replace with your local official or farm ledger values later.",
+  "default_crop": "corn",
+  "crops": {
+    "corn": {
+      "yield_kg_per_ha": 6500,
+      "price_per_kg": 2.2,
+      "source_note": "占位参数：请用你所在地区的产量与收购价台账替换。"
+    },
+    "rice": {
+      "yield_kg_per_ha": 7000,
+      "price_per_kg": 3.0,
+      "source_note": "占位参数：请用你所在地区的产量与收购价台账替换。"
+    },
+    "wheat": {
+      "yield_kg_per_ha": 6000,
+      "price_per_kg": 2.4,
+      "source_note": "占位参数：请用你所在地区的产量与收购价台账替换。"
+    }
+  }
+}

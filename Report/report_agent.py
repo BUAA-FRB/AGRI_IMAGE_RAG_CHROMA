@@ -12,6 +12,9 @@ from .schemas import AdviserPlan, KnowledgeRef, PhaseAction, PredInfo, ReportCon
 from .prompts import build_messages
 from .qwen_runner import QwenRunner, QwenGenConfig
 
+# NEW: charts
+from .chart_utils import generate_charts, build_charts_markdown_section
+
 
 def _parse_adviser_plan(output_obj: Dict[str, Any]) -> AdviserPlan:
     gen = (output_obj or {}).get("generation") or {}
@@ -131,7 +134,7 @@ def _build_context(pkg: Dict[str, Any]) -> ReportContext:
 
 
 # -------------------------
-# Markdown post-processing (NEW, for stability)
+# Markdown post-processing (for stability)
 # -------------------------
 
 _FENCE_LINE_RE = re.compile(r"(?m)^\s*```.*\s*$")
@@ -149,17 +152,14 @@ def _strip_outer_markdown_fence(text: str) -> str:
 
     t = text.strip()
 
-    # Case 1: direct full-match fence wrapper
     m = re.match(r"^\s*```(?:markdown|md)?\s*\n([\s\S]*?)\n```\s*$", t, flags=re.IGNORECASE)
     if m:
         return m.group(1).strip()
 
-    # Case 2: exactly two fence lines, first at start and last at end
     fence_lines = list(_FENCE_LINE_RE.finditer(t))
     if len(fence_lines) == 2:
         first = fence_lines[0]
         last = fence_lines[1]
-        # first fence must start at 0 after stripping, last fence must end at end
         if first.start() == 0 and last.end() == len(t):
             inner = t[first.end(): last.start()]
             return inner.strip()
@@ -181,32 +181,26 @@ def _ensure_title_and_time(md: str, ctx: ReportContext) -> str:
     Ensure the report starts with a H1 title and a generation-time quote line.
     """
     t = (md or "").lstrip()
+    title_time = ctx.time_utc or datetime.now(timezone.utc).isoformat()
+
     if not t:
-        title_time = ctx.time_utc or datetime.now(timezone.utc).isoformat()
         return f"# 智能农业研判与处置建议报告\n\n> 生成时间：{title_time}\n"
 
     lines = t.splitlines()
-    # find first non-empty line
     i = 0
     while i < len(lines) and not lines[i].strip():
         i += 1
 
-    title_time = ctx.time_utc or datetime.now(timezone.utc).isoformat()
-
     if i >= len(lines) or not lines[i].lstrip().startswith("# "):
-        # Prepend title + time
         prefix = f"# 智能农业研判与处置建议报告\n\n> 生成时间：{title_time}\n\n"
         return prefix + t
 
-    # ensure time block exists in first few lines (not strict, but helpful)
-    head = "\n".join(lines[i:i+6])
+    head = "\n".join(lines[i:i + 6])
     if "生成时间" not in head:
-        # insert after title line
         title_line = lines[i]
-        rest = lines[i+1:]
+        rest = lines[i + 1:]
         new = [title_line, "", f"> 生成时间：{title_time}", ""]
         new.extend(rest)
-        # keep any leading blank lines removed by lstrip
         return "\n".join(lines[:i] + new).lstrip() + "\n"
 
     return t
@@ -219,6 +213,30 @@ def _postprocess_markdown(md: str, ctx: ReportContext) -> str:
     return md2.strip() + "\n"
 
 
+def _insert_charts_section(md: str, charts_md: str) -> str:
+    """
+    Insert charts section between Section 1 and 2 if possible,
+    to avoid all-text or all-figures crowded together.
+    """
+    if not charts_md.strip():
+        return md
+
+    # Prefer inserting before "## 2."
+    m = re.search(r"(?m)^\s*##\s+2\.", md)
+    if m:
+        idx = m.start()
+        return md[:idx].rstrip() + "\n\n" + charts_md.strip() + "\n\n" + md[idx:].lstrip()
+
+    # Fallback: insert before any "## 2"
+    m2 = re.search(r"(?m)^\s*##\s+2\s", md)
+    if m2:
+        idx = m2.start()
+        return md[:idx].rstrip() + "\n\n" + charts_md.strip() + "\n\n" + md[idx:].lstrip()
+
+    # Fallback: append at end
+    return md.rstrip() + "\n\n" + charts_md.strip() + "\n"
+
+
 @dataclass
 class ReportAgentConfig:
     model_path: str
@@ -229,6 +247,10 @@ class ReportAgentConfig:
     top_p: float = 0.85
     repetition_penalty: float = 1.05
     seed: Optional[int] = 42
+
+    # charts
+    charts_enabled: bool = True
+    charts_days: int = 14
 
 
 class ReportAgent:
@@ -254,10 +276,7 @@ class ReportAgent:
             seed=self.cfg.seed,
         )
         md = self.runner.generate(messages, gen_cfg)
-
-        # Postprocess for strict formatting guarantees
-        md = _postprocess_markdown(md, ctx)
-        return md
+        return _postprocess_markdown(md, ctx)
 
     def save_report(self, advice_json_path: str, out_dir: str) -> str:
         from .io_utils import write_text
@@ -270,8 +289,36 @@ class ReportAgent:
 
         pred_id = ctx.pred.pred_id or "unknown"
         ts = datetime.now().strftime("%Y%m%d-%H%M%S")
-        out_path = out_dir_p / f"report_{pred_id}_{ts}.md"
+        run_id = f"{pred_id}_{ts}"
 
+        out_path = out_dir_p / f"report_{run_id}.md"
         md = self.generate_report_markdown(advice_json_path)
+
+        # Charts: generate & insert
+        if self.cfg.charts_enabled:
+            try:
+                phases = ctx.adviser_plan.phases or {}
+                bundle = generate_charts(
+                    out_dir_p=out_dir_p,
+                    run_id=run_id,
+                    time_utc=ctx.time_utc,
+                    canon_label=(ctx.pred.canon_label or ctx.pred.pred_label),
+                    risk_level=ctx.adviser_plan.risk_level,
+                    confidence=ctx.pred.confidence,
+                    phases=phases,
+                    days=self.cfg.charts_days,
+                )
+                charts_md = build_charts_markdown_section(bundle)
+                md = _insert_charts_section(md, charts_md)
+            except Exception as e:
+                # Do not crash the report generation
+                fallback = (
+                    "## 1.5 图表与量化推演（未生成）\n"
+                    "> 说明：本次未能生成图表，但不影响正文报告。\n\n"
+                    f"- 错误：`{type(e).__name__}: {e}`\n"
+                    "- 建议：请确认已安装依赖 `pip install matplotlib numpy`，并确保 Matplotlib 可正常调用系统字体。\n"
+                )
+                md = _insert_charts_section(md, fallback)
+
         write_text(out_path, md)
         return str(out_path)

@@ -1,0 +1,18 @@
+{
+  "sites": [
+    {
+      "name": "Field-A",
+      "lat": 39.9,
+      "lon": 116.4,
+      "crop": "corn",
+      "stage": "vegetative"
+    },
+    {
+      "name": "Field-B",
+      "lat": 31.23,
+      "lon": 121.47,
+      "crop": "rice",
+      "stage": "reproductive"
+    }
+  ]
+}

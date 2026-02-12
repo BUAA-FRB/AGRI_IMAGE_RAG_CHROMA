@@ -1,0 +1,61 @@
+{
+  "version": "v1",
+  "note": "Default hazard->yield-loss mapping. Replace with calibrated curves later.",
+  "hazards": {
+    "waterway": {
+      "name_zh": "水道/积水通道",
+      "within_affected_yield_loss": 0.85,
+      "spillover_coeff": 0.20,
+      "base_uncertainty": 0.35,
+      "note": "默认认为受灾像素区域高度减产，且存在一定溢出影响（根系缺氧/机械碾压等）。"
+    },
+    "water": {
+      "name_zh": "积水",
+      "within_affected_yield_loss": 0.75,
+      "spillover_coeff": 0.15,
+      "base_uncertainty": 0.40
+    },
+    "storm_damage": {
+      "name_zh": "风暴损伤",
+      "within_affected_yield_loss": 0.90,
+      "spillover_coeff": 0.25,
+      "base_uncertainty": 0.45
+    },
+    "drydown": {
+      "name_zh": "干旱/枯萎",
+      "within_affected_yield_loss": 0.65,
+      "spillover_coeff": 0.10,
+      "base_uncertainty": 0.40
+    },
+    "nutrient_deficiency": {
+      "name_zh": "营养缺乏",
+      "within_affected_yield_loss": 0.40,
+      "spillover_coeff": 0.05,
+      "base_uncertainty": 0.45
+    },
+    "weed_cluster": {
+      "name_zh": "杂草簇",
+      "within_affected_yield_loss": 0.30,
+      "spillover_coeff": 0.03,
+      "base_uncertainty": 0.50
+    },
+    "planter_skip": {
+      "name_zh": "漏播",
+      "within_affected_yield_loss": 0.60,
+      "spillover_coeff": 0.02,
+      "base_uncertainty": 0.45
+    },
+    "double_plant": {
+      "name_zh": "重播/重复播种",
+      "within_affected_yield_loss": 0.20,
+      "spillover_coeff": 0.02,
+      "base_uncertainty": 0.55
+    },
+    "endrow": {
+      "name_zh": "地头行/边界异常",
+      "within_affected_yield_loss": 0.10,
+      "spillover_coeff": 0.00,
+      "base_uncertainty": 0.60
+    }
+  }
+}

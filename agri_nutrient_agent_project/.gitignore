@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.venv/
+nutrient_output/
+web/node_modules/
+web/dist/

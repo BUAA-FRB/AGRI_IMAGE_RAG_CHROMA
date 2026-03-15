@@ -78,7 +78,7 @@ def ensure_hf_snapshot_local(
 class Qwen3VLClient:
     def __init__(
         self,
-        model_name: str = "Qwen/Qwen3-VL-4B-Instruct",
+        model_name: str = "Qwen/Qwen3-VL-7B-Instruct",
         local_root: str = "./model",
         revision: Optional[str] = None,
         force_download: bool = False,
@@ -129,7 +129,11 @@ class Qwen3VLClient:
         local_path = self._resolve_local_path()
         logger.info("Loading Qwen3-VL model from: %s", local_path)
 
-        from transformers import AutoProcessor, AutoModelForImageTextToText
+        from transformers import AutoProcessor
+        try:
+            from transformers import AutoModelForImageTextToText
+        except ImportError:
+            from transformers import Qwen2VLForConditionalGeneration as AutoModelForImageTextToText
 
         kwargs: Dict[str, Any] = {
             "device_map": self.device_map,
